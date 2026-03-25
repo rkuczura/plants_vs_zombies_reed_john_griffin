@@ -16,3 +16,17 @@ class LawnState:
         self.round_num: int
         self.zombies_present: int
         self.running: bool
+        self.selected_cells: set[tuple[int, int,]] = set()
+        self.view
+
+#adds a plant to a cell
+def select_cell(state, row: int, col: int):
+        state.selected_cells.add((row, col))
+
+#removes a plant from a cell
+def deselect_cell(state, row: int, col: int):
+        state.selected_cells.discard((row, col))
+
+#
+def is_selected(state, row: int, col: int) -> bool:
+        return (row, col) in state.selected_cells
