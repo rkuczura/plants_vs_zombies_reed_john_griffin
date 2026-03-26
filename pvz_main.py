@@ -6,6 +6,7 @@ import tkinter as tk
 #importing the config class and game starting function from other modules
 from pvz_model import LawnConfig
 from pvz_controller import startgame
+from pvz_view import build_ui, redraw
 
 #define our config values to modify the game
 def main() -> None:
