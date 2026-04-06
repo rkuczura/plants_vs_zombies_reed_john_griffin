@@ -1,36 +1,44 @@
-from logging import config, root
 import random
+import pygame
 
-from pvz_view import build_ui, redraw
-from pvz_model import LawnConfig, LawnState, check_collisions, move_zombies, select_cell, is_selected, get_cell_from_xy, spawn_zombie
-import tkinter as tk
+from pvz_view import redraw
+from pvz_model import (
+LawnConfig, LawnState,
+check_collisions, move_zombies,
+get_cell_from_xy, spawn_zombie)
 
-#for right now(phase 1) this is just used to place a "plant" or circle on any grid square that is
-def on_click(state, event, canvas, config):
-        cell = get_cell_from_xy(event.x, event.y, config)
+
+def on_click(state, x, y, config):
+        cell = get_cell_from_xy(x, y, config)
         if cell is not None:
             state.toggle_cell(cell)
-            redraw(canvas, state, config)
         return state
 
-def startgame(root: tk.Tk, config: LawnConfig):
-    canvas, view_ids = build_ui(root, config)
-    state = LawnState()
 
-    def lclick_handler(event):
-        nonlocal state
-        state = on_click(state, event, canvas, config)
+#starts game and contains the main game loop
+def startgame(screen: pygame.Surface, config: LawnConfig):
+    state  = LawnState()
+    clock  = pygame.time.Clock()
 
-    canvas.bind("<ButtonPress-1>", lclick_handler)
+    while state.running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                state.running = False
 
-    def game_loop():
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Left-click → place / remove a plant
+                mx, my = event.pos
+                state = on_click(state, mx, my, config)
+
         move_zombies(state)
         check_collisions(state, config)
-        redraw(canvas, state, config)
 
+        # Randomly spawn a zombie
         if random.random() < 0.01:
             spawn_zombie(state, config)
 
-        root.after(30, game_loop)  # <-- reschedule from inside
+        redraw(screen, state, config)
 
-    game_loop()
+        clock.tick(30)
+
+    pygame.quit()

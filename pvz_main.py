@@ -1,12 +1,12 @@
 #Main file to be ran in order to start the game
 
-#importing in tkinter library which will be used often
-import tkinter as tk
+#importing pygame module
+import pygame
 
 #importing the config class and game starting function from other modules
 from pvz_model import LawnConfig
 from pvz_controller import startgame
-from pvz_view import build_ui, redraw
+from pvz_view import build_ui
 
 #define our config values to modify the game
 def main() -> None:
@@ -17,11 +17,11 @@ def main() -> None:
         rows = 5,
         plant_radius = 20,
     )
-    #creates the main application window and initializes Tkinter enviroment
-    root = tk.Tk()
-    tk.title=("Plants vs Zombies")
-    startgame(root,config)
-    root.mainloop()
+    #Initialize pygame display window
+    screen = build_ui(config)
+
+    #Calls function from controller which runs the game loop
+    startgame(screen, config)
 
 if __name__ == "__main__":
     main()
