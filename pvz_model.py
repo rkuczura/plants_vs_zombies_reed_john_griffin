@@ -1,7 +1,4 @@
-from logging import config
 import random
-
-
 
 class LawnConfig:
     def __init__(self, width: int, height: int, columns: int, rows: int, plant_radius: int):
@@ -10,7 +7,17 @@ class LawnConfig:
         self.columns = columns
         self.rows = rows
         self.plant_radius = plant_radius
-        self.zombie_speed = -1
+
+        # Zombie stats
+        self.zombie_speed = -2
+        self.zombie_health = 10
+        self.larger_zombie_health = 16
+
+        # Plant stats
+        self.pea_shooter_health = 20
+        self.wallnut_health = 10      # 10 bites × 0.4s = ~4 seconds
+        self.pea_shooter_damage = 2
+        self.zombie_damage = 1        # damage per bite
 
 
 class LawnState:
@@ -18,29 +25,48 @@ class LawnState:
         self.round_num = 1
         self.zombies_present = 0
         self.running = True
-        self.selected_cells: set[tuple[int, int]] = set()
+
+        # (row, col) → {"type": str, "health": int}
+        self.plants: dict[tuple[int, int], dict] = {}
+
+        # List of zombie dictionaries
         self.zombies = []
 
-    def toggle_cell(self, cell: tuple[int, int]):
-        """Add or remove a plant in the given cell."""
-        if cell in self.selected_cells:
-            self.selected_cells.remove(cell)
-        else:
-            self.selected_cells.add(cell)
+        # Peas fired by peashooters
+        self.peas = []
+
+        # cooldown so peas don't fire every frame
+        self.pea_cooldown = 0
 
 
-def select_cell(state, row: int, col: int):
-    state.selected_cells.add((row, col))
+# -----------------------------
+# Plant placement
+# -----------------------------
+def place_plant(state: LawnState, row: int, col: int, plant_type: str):
+    if plant_type == "peashooter":
+        health = 20
+    else:
+        health = 10  # wallnut lasts ~4 seconds
+
+    state.plants[(row, col)] = {"type": plant_type, "health": health}
 
 
-def deselect_cell(state, row: int, col: int):
-    state.selected_cells.discard((row, col))
+def remove_plant(state: LawnState, row: int, col: int):
+    state.plants.pop((row, col), None)
 
 
-def is_selected(state, row: int, col: int) -> bool:
-    return (row, col) in state.selected_cells
+def plant_in_cell(state: LawnState, row: int, col: int) -> bool:
+    return (row, col) in state.plants
 
 
+def get_plant_type(state: LawnState, row: int, col: int):
+    plant = state.plants.get((row, col))
+    return plant["type"] if plant else None
+
+
+# -----------------------------
+# Grid helpers
+# -----------------------------
 def get_cell_from_xy(x: int, y: int, config: LawnConfig) -> tuple[int, int]:
     cell_width = config.width / config.columns
     cell_height = config.height / config.rows
@@ -67,52 +93,146 @@ def get_cell_bounds(row: int, col: int, config: LawnConfig) -> tuple[int, int, i
     return x1, y1, x2, y2
 
 
-def plant_in_cell(state: LawnState, row: int, col: int) -> bool:
-    return (row, col) in state.selected_cells
-
+# -----------------------------
+# Zombie spawning + movement
+# -----------------------------
 def spawn_zombie(state: LawnState, config: LawnConfig):
     row = random.randint(0, config.rows - 1)
     start_x = config.width - 50
 
-    zombie = {"row": row, "x": start_x}
+    if random.random() < 0.2:
+        zombie = {
+            "row": row,
+            "x": start_x,
+            "type": "big",
+            "health": config.larger_zombie_health,
+            "speed": -1.2,
+            "eating": False,
+            "bite_cooldown": 0
+        }
+    else:
+        zombie = {
+            "row": row,
+            "x": start_x,
+            "type": "normal",
+            "health": config.zombie_health,
+            "speed": -2,
+            "eating": False,
+            "bite_cooldown": 0
+        }
+
     state.zombies.append(zombie)
 
 
 def move_zombies(state: LawnState):
     for zombie in state.zombies:
-        zombie["x"] -= 2
+        if not zombie["eating"]:
+            zombie["x"] += zombie["speed"]
 
+
+# -----------------------------
+# Peashooter projectiles
+# -----------------------------
+def spawn_peas(state: LawnState, config: LawnConfig):
+    if state.pea_cooldown > 0:
+        state.pea_cooldown -= 1
+        return
+
+    for (row, col), plant in state.plants.items():
+        if plant["type"] == "peashooter":
+            x = col * (config.width / config.columns) + 40
+            state.peas.append({"row": row, "x": x})
+
+    state.pea_cooldown = 20
+
+
+def move_peas(state: LawnState):
+    for pea in state.peas:
+        pea["x"] += 8
+
+    state.peas = [p for p in state.peas if p["x"] < 1400]
+
+
+# -----------------------------
+# Collision detection
+# -----------------------------
 def rects_overlap(a, b):
     ax1, ay1, ax2, ay2 = a
     bx1, by1, bx2, by2 = b
     return not (ax2 < bx1 or ax1 > bx2 or ay2 < by1 or ay1 > by2)
 
-def check_collisions(state: LawnState, config: LawnConfig):
-    zombies_to_remove = []
-    plants_to_remove = []
 
+def check_collisions(state: LawnState, config: LawnConfig):
+
+    # Reset eating state each frame
+    for zombie in state.zombies:
+        zombie["eating"] = False
+
+    # NEW: decrement bite cooldown when not eating
+    for zombie in state.zombies:
+        if not zombie["eating"] and zombie["bite_cooldown"] > 0:
+            zombie["bite_cooldown"] -= 1
+
+    # -------------------------
+    # Zombie → Plant damage
+    # -------------------------
     for zombie in state.zombies:
         row = zombie["row"]
         zx = zombie["x"]
 
-        # zombie bounding box
         cell_height = config.height / config.rows
         zy = int(row * cell_height + cell_height / 2)
 
-        zombie_box = (zx - 20, zy - 20, zx + 20, zy + 20)
+        half = 30 if zombie["type"] == "big" else 20
+        zombie_box = (zx - half, zy - half, zx + half, zy + half)
 
-        # check against all plants
-        for (prow, pcol) in state.selected_cells:
+        for (prow, pcol), plant in list(state.plants.items()):
             px1, py1, px2, py2 = get_cell_bounds(prow, pcol, config)
             plant_box = (px1, py1, px2, py2)
 
             if rects_overlap(zombie_box, plant_box):
-                plants_to_remove.append((prow, pcol))
-                zombies_to_remove.append(zombie)
 
-    # apply removals
-    for plant in plants_to_remove:
-        state.selected_cells.remove(plant)
+                zombie["eating"] = True
+
+                # Bite every 12 frames (~0.4 seconds)
+                if zombie["bite_cooldown"] <= 0:
+                    plant["health"] -= config.zombie_damage
+                    zombie["bite_cooldown"] = 12
+
+                # Remove plant if dead
+                if plant["health"] <= 0:
+                    state.plants.pop((prow, pcol), None)
+                    zombie["eating"] = False
+                    zombie["bite_cooldown"] = 0
+
+    # -------------------------
+    # Pea → Zombie damage
+    # -------------------------
+    peas_to_remove = []
+    zombies_to_remove = []
+
+    for pea in state.peas:
+        prow = pea["row"]
+        px = pea["x"]
+
+        for zombie in state.zombies:
+            if zombie["row"] != prow:
+                continue
+
+            half = 30 if zombie["type"] == "big" else 20
+            zx = zombie["x"]
+
+            if zx - half <= px <= zx + half:
+                zombie["health"] -= config.pea_shooter_damage
+                peas_to_remove.append(pea)
+
+                if zombie["health"] <= 0:
+                    zombies_to_remove.append(zombie)
+
+    for pea in peas_to_remove:
+        if pea in state.peas:
+            state.peas.remove(pea)
 
     for zombie in zombies_to_remove:
-        state.zombies.remove(zombie)
+        if zombie in state.zombies:
+            state.zombies.remove(zombie)
