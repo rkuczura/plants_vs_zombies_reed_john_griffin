@@ -37,11 +37,20 @@ class LawnState:
 
         # cooldown so peas don't fire every frame
         self.pea_cooldown = 0
+        
+        #level data
+        self.level = 1
+        self.zombies_spawned = 0
+        self.zombies_killed = 0
+        self.level_target = {1: 10, 2: 18}
+        self.victory = False
+        self.game_over = False
+        self.level_2_shown = False
+
+        self.selected_plant = "peashooter"
 
 
-# -----------------------------
 # Plant placement
-# -----------------------------
 def place_plant(state: LawnState, row: int, col: int, plant_type: str):
     if plant_type == "peashooter":
         health = 20
@@ -93,9 +102,7 @@ def get_cell_bounds(row: int, col: int, config: LawnConfig) -> tuple[int, int, i
     return x1, y1, x2, y2
 
 
-# -----------------------------
 # Zombie spawning + movement
-# -----------------------------
 def spawn_zombie(state: LawnState, config: LawnConfig):
     row = random.randint(0, config.rows - 1)
     start_x = config.width - 50
@@ -130,9 +137,7 @@ def move_zombies(state: LawnState):
             zombie["x"] += zombie["speed"]
 
 
-# -----------------------------
 # Peashooter projectiles
-# -----------------------------
 def spawn_peas(state: LawnState, config: LawnConfig):
     if state.pea_cooldown > 0:
         state.pea_cooldown -= 1
@@ -153,9 +158,8 @@ def move_peas(state: LawnState):
     state.peas = [p for p in state.peas if p["x"] < 1400]
 
 
-# -----------------------------
+
 # Collision detection
-# -----------------------------
 def rects_overlap(a, b):
     ax1, ay1, ax2, ay2 = a
     bx1, by1, bx2, by2 = b
@@ -163,31 +167,32 @@ def rects_overlap(a, b):
 
 
 def check_collisions(state: LawnState, config: LawnConfig):
+    UI_HEIGHT = 80
 
     # Reset eating state each frame
     for zombie in state.zombies:
         zombie["eating"] = False
 
-    # NEW: decrement bite cooldown when not eating
+    # Decrement bite cooldown when not eating
     for zombie in state.zombies:
         if not zombie["eating"] and zombie["bite_cooldown"] > 0:
             zombie["bite_cooldown"] -= 1
 
-    # -------------------------
-    # Zombie → Plant damage
-    # -------------------------
+    # Zombie to Plant damage
     for zombie in state.zombies:
         row = zombie["row"]
         zx = zombie["x"]
 
         cell_height = config.height / config.rows
-        zy = int(row * cell_height + cell_height / 2)
+        zy = int(row * cell_height + cell_height / 2 + UI_HEIGHT)
 
         half = 30 if zombie["type"] == "big" else 20
         zombie_box = (zx - half, zy - half, zx + half, zy + half)
 
         for (prow, pcol), plant in list(state.plants.items()):
             px1, py1, px2, py2 = get_cell_bounds(prow, pcol, config)
+            py1 += UI_HEIGHT
+            py2 += UI_HEIGHT
             plant_box = (px1, py1, px2, py2)
 
             if rects_overlap(zombie_box, plant_box):
@@ -205,9 +210,8 @@ def check_collisions(state: LawnState, config: LawnConfig):
                     zombie["eating"] = False
                     zombie["bite_cooldown"] = 0
 
-    # -------------------------
-    # Pea → Zombie damage
-    # -------------------------
+
+    # Pea to Zombie damage
     peas_to_remove = []
     zombies_to_remove = []
 
@@ -236,3 +240,4 @@ def check_collisions(state: LawnState, config: LawnConfig):
     for zombie in zombies_to_remove:
         if zombie in state.zombies:
             state.zombies.remove(zombie)
+            state.zombies_killed += 1
