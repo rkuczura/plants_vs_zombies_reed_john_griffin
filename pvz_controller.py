@@ -1,7 +1,9 @@
 import random
 import pygame
 
+#Imports viewmodels for plants and game screen
 from pvz_view import redraw, PEASHOOTER_CARD, WALLNUT_CARD, draw_victory, draw_level_2_message, draw_game_over
+#Imports game physics for zombie movement and spawns
 from pvz_model import (
     LawnConfig, LawnState,
     check_collisions, move_zombies,
@@ -12,18 +14,18 @@ from pvz_model import (
 
 
 
-def handle_click(state, x, y, button, config):
+def handle_click(state, x, y, button, config):              #Creates the UI for the plant selection and placement
     if y < 80:
         if PEASHOOTER_CARD.collidepoint(x, y):
-            state.selected_plant = "peashooter"
+            state.selected_plant = "peashooter"             # Selects peashooter
         elif WALLNUT_CARD.collidepoint(x, y):
-            state.selected_plant = "wallnut"
+            state.selected_plant = "wallnut"                # Selects wallnut
         return state
 
     row, col = get_cell_from_xy(x, y - 80, config)
 
     if button == 1:
-        place_plant(state, row, col, state.selected_plant)
+        place_plant(state, row, col, state.selected_plant)  # Places the selected plant on the grid
 
     return state
 
@@ -33,6 +35,7 @@ def startgame(screen: pygame.Surface, config: LawnConfig):
     state = LawnState()
     clock = pygame.time.Clock()
 
+    #Inital state of the game loop
     while state.running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -61,6 +64,7 @@ def startgame(screen: pygame.Surface, config: LawnConfig):
                 state.game_over = True
                 state.running = False
         
+        # Creates the second level after killing enough zombies
         if state.zombies_killed >= state.level_target[state.level] and not state.zombies:
             if state.level == 1:
                 state.level = 2

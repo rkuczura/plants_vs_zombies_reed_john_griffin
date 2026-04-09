@@ -93,7 +93,7 @@ def redraw(screen: pygame.Surface, state: LawnState, config: LawnConfig):
 
     pygame.display.flip()
 
-
+# Victory screen
 def draw_victory(screen, config):
     screen.fill((10, 80, 10))
     font = pygame.font.SysFont("arial", 72, bold=True)
@@ -101,6 +101,7 @@ def draw_victory(screen, config):
     screen.blit(text, (config.width//2 - 160, config.height//2 - 40))
     pygame.display.flip()
 
+# Level 2 message
 def draw_level_2_message(screen, config):
     screen.fill((0, 128, 0))
     font = pygame.font.SysFont("arial", 60, bold=True)
@@ -108,6 +109,7 @@ def draw_level_2_message(screen, config):
     screen.blit(text, (config.width//2 - 120, config.height//2 - 40))
     pygame.display.flip()
 
+# Game over screen
 def draw_game_over(screen, config):
     screen.fill((128, 0, 0))
     font = pygame.font.SysFont("arial", 72, bold=True)
@@ -115,6 +117,7 @@ def draw_game_over(screen, config):
     screen.blit(text, (config.width//2 - 200, config.height//2 - 40))
     pygame.display.flip()
 
+# Initializes the game screen
 def build_ui(config: LawnConfig) -> pygame.Surface:
     pygame.init()
     screen = pygame.display.set_mode((config.width, config.height + UI_HEIGHT))

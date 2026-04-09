@@ -59,15 +59,15 @@ def place_plant(state: LawnState, row: int, col: int, plant_type: str):
 
     state.plants[(row, col)] = {"type": plant_type, "health": health}
 
-
+# Removes plant
 def remove_plant(state: LawnState, row: int, col: int):
     state.plants.pop((row, col), None)
 
-
+# Determines whether their is a plant in a cell
 def plant_in_cell(state: LawnState, row: int, col: int) -> bool:
     return (row, col) in state.plants
 
-
+# Determines what type of plant it is
 def get_plant_type(state: LawnState, row: int, col: int):
     plant = state.plants.get((row, col))
     return plant["type"] if plant else None
@@ -76,6 +76,7 @@ def get_plant_type(state: LawnState, row: int, col: int):
 # -----------------------------
 # Grid helpers
 # -----------------------------
+
 def get_cell_from_xy(x: int, y: int, config: LawnConfig) -> tuple[int, int]:
     cell_width = config.width / config.columns
     cell_height = config.height / config.rows
@@ -83,13 +84,13 @@ def get_cell_from_xy(x: int, y: int, config: LawnConfig) -> tuple[int, int]:
     row = int(y // cell_height)
     return row, col
 
-
+# Determines center of a cell for plant placement
 def get_cell_center(row: int, col: int, config: LawnConfig) -> tuple[int, int]:
     cell_width = config.width / config.columns
     cell_height = config.height / config.rows
     center_x = int(col * cell_width + cell_width / 2)
     center_y = int(row * cell_height + cell_height / 2)
-    return center_x, center_y
+    return center_x, center_y           #Will be used for plant placement on the grid
 
 
 def get_cell_bounds(row: int, col: int, config: LawnConfig) -> tuple[int, int, int, int]:
@@ -130,7 +131,7 @@ def spawn_zombie(state: LawnState, config: LawnConfig):
 
     state.zombies.append(zombie)
 
-
+# Zombie state, moving/eating logic
 def move_zombies(state: LawnState):
     for zombie in state.zombies:
         if not zombie["eating"]:
