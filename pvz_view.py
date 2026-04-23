@@ -143,8 +143,8 @@ def redraw(screen: pygame.Surface, state: LawnState, config: LawnConfig):
     
     # Sun counter
     font_large = pygame.font.SysFont("arial", 24, bold=True)
-    sun_text = font_large.render(f"☀ {state.sun_count}", True, COLOR_HIGHLIGHT)
-    screen.blit(sun_text, (20, 15))
+    sun_text = font_large.render(f"Suns: {state.sun_count}", True, COLOR_HIGHLIGHT)
+    screen.blit(sun_text, (400, 40))
     
   #level indivator
     level_text = font_large.render(f"Level {state.level}", True, COLOR_TEXT)
