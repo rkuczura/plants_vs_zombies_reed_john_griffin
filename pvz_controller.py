@@ -1,96 +1,132 @@
-import random
-import pygame
 
-from pvz_view import redraw, PEASHOOTER_CARD, WALLNUT_CARD, draw_victory, draw_level_2_message, draw_game_over
+import pygame
+from pvz_view import (
+    redraw, draw_victory, draw_game_over, draw_level_transition, UI_HEIGHT
+)
 from pvz_model import (
     LawnConfig, LawnState,
-    check_collisions, move_zombies,
-    get_cell_from_xy, spawn_zombie,
-    place_plant, remove_plant, plant_in_cell,
-    move_peas, spawn_peas
+    check_collisions, move_zombies, move_peas, spawn_peas,
+    get_cell_from_xy, spawn_zombie, place_plant, collect_sun,
+    spawn_sun, move_suns, update_game_state, check_game_over,
+    should_spawn_zombie, reset_level, reset_game
 )
 
+#mouse click handler
+def handle_click(state: LawnState, x: int, y: int, config: LawnConfig) -> bool:
+    # Check if click is on UI panel
+    if y < UI_HEIGHT:
+        # Plant selection cards at y=10
+        card_y = 10
+        card_width = 70
+        card_height = 60
+        card_x_start = 20
+
+        plant_cards = ["peashooter", "wallnut", "slowflower"]
+
+        for i, plant_type in enumerate(plant_cards):
+            card_x = card_x_start + i * (card_width + 10)
+            if (card_x <= x <= card_x + card_width and 
+                card_y <= y <= card_y + card_height):
+                state.selected_plant = plant_type
+                return False
+
+        return False
+
+    # Check if click is on a sun
+    sun_y = y - UI_HEIGHT
+    if collect_sun(state, x, sun_y, config):
+        return False
+
+    # Click is on game board - try to place a plant
+    row, col = get_cell_from_xy(x, y - UI_HEIGHT, config)
+
+    # Validate grid coordinates
+    if row < 0 or row >= config.rows or col < 0 or col >= config.columns:
+        return False
+
+    # Try to place the selected plant
+    success = place_plant(state, row, col, state.selected_plant, config)
+    return success
 
 
-def handle_click(state, x, y, button, config):
-    if y < 80:
-        if PEASHOOTER_CARD.collidepoint(x, y):
-            state.selected_plant = "peashooter"
-        elif WALLNUT_CARD.collidepoint(x, y):
-            state.selected_plant = "wallnut"
-        return state
+def handle_keypress(state: LawnState, key: int):
+    """Handle keyboard input"""
+    if key == pygame.K_r:
+        # Restart current level
+        reset_level(state)
+        state.running = True
+        state.game_over = False
+    elif key == pygame.K_g:
+        # Restart game from Level 1
+        reset_game(state)
+        state.running = True
 
-    row, col = get_cell_from_xy(x, y - 80, config)
 
-    if button == 1:
-        place_plant(state, row, col, state.selected_plant)
+def update_game(state: LawnState, config: LawnConfig):
+    """
+    Main game update loop - handle all game logic
+    """
+    # Spawn suns
+    spawn_sun(state, config)
+    move_suns(state, config)
 
-    return state
+    # Spawn zombies if conditions are met
+    if should_spawn_zombie(state, config):
+        spawn_zombie(state, config)
+        state.zombies_spawned += 1
 
+    # Move all entities
+    move_zombies(state, config)
+    move_peas(state)
+    spawn_peas(state, config)
+
+    # Check all collisions
+    check_collisions(state, config)
+
+    # Check if any zombie reached the left side (LOSE condition)
+    if check_game_over(state):
+        return
+
+    # Update overall game state
+    update_game_state(state, config)
 
 
 def startgame(screen: pygame.Surface, config: LawnConfig):
+    """Main game loop"""
     state = LawnState()
     clock = pygame.time.Clock()
 
-    while state.running:
+    # Main game loop
+    while True:
+        # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                state.running = False
+                pygame.quit()
+                return
 
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and state.running:
                 mx, my = event.pos
-                state = handle_click(state, mx, my, event.button, config)
+                handle_click(state, mx, my, config)
 
-        # Game Logic
-        move_zombies(state)
-        move_peas(state)          # NEW
-        spawn_peas(state, config) # NEW
-        check_collisions(state, config)
+            elif event.type == pygame.KEYDOWN and not state.running:
+                handle_keypress(state, event.key)
 
-        # Randomly spawn a zombie
-        spawn_rate = 0.01 if state.level == 1 else 0.02
+        # Update game state if running
+        if state.running:
+            update_game(state, config)
 
-        if random.random() < spawn_rate:
-            spawn_zombie(state, config)
-            state.zombies_spawned += 1
-        
-        # Check if any zombie reached the left side
-        for zombie in state.zombies:
-            if zombie["x"] < 0:
-                state.game_over = True
-                state.running = False
-        
-        if state.zombies_killed >= state.level_target[state.level] and not state.zombies:
-            if state.level == 1:
-                state.level = 2
-                state.zombies_killed = 0
-                state.zombies_spawned = 0
-                state.peas.clear()
-                state.level_2_shown = False
-            else:
-                state.victory = True
-                state.running = False
-        
-        # Display screen messages
-        if state.game_over:
-            draw_game_over(screen, config)
-            pygame.time.wait(3000)
-        elif state.level == 2 and not state.level_2_shown:
-            draw_level_2_message(screen, config)
-            pygame.time.wait(2000)
-            state.level_2_shown = True
-            # Continue to normal redraw after level message
-            redraw(screen, state, config)
-        elif state.victory:
+        # Render appropriate screen
+        if state.game_won:
             draw_victory(screen, config)
+            pygame.display.flip()
             pygame.time.wait(3000)
+            pygame.quit()
+            return
+        elif state.game_over:
+            draw_game_over(screen, config)
+        elif state.show_level_transition:
+            draw_level_transition(screen, config, state.level)
         else:
-            # Draw everything normally
             redraw(screen, state, config)
-        
-        clock.tick(30)
 
-        
-
-    pygame.quit()
+        clock.tick(30)  # 30 FPS

@@ -39,7 +39,7 @@ class LawnConfig:
         }
 
         self.boss_wave_threshold = 25  #boss spawns in after this many zombies are killed in level 3
-        self.sun_click_radius = 30  # This is the clickradius to obtain a sun
+        self.sun_click_radius = 40  # This is the clickradius to obtain a sun 
 
 
 class LawnState:
