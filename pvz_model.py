@@ -135,7 +135,7 @@ def get_cell_center(row: int, col: int, config: LawnConfig) -> tuple[int, int]:
     cell_height = config.height / config.rows
     center_x = int(col * cell_width + cell_width / 2)
     center_y = int(row * cell_height + cell_height / 2)
-    return center_x, center_y
+    return center_x, center_y           #Will be used for plant placement on the grid
 
 #find edges of a cell
 def get_cell_bounds(row: int, col: int, config: LawnConfig) -> tuple[int, int, int, int]:
