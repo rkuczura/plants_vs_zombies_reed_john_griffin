@@ -223,7 +223,8 @@ def redraw(screen: pygame.Surface, state: LawnState, config: LawnConfig):
             screen.blit(img, (plant_x - 25, plant_y - 25))
         
         # Draw health bar
-        health_ratio = plant["health"] / 30.0
+        max_health = plant.get("max_health", 30)
+        health_ratio = plant["health"] / max_health
         health_ratio = max(0, min(1, health_ratio))
         bar_width = (px2 - px1) - 10
         bar_height = 4

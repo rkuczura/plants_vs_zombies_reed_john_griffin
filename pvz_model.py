@@ -98,9 +98,11 @@ def place_plant(state: LawnState, row: int, col: int, plant_type: str, config: L
         "slowflower": config.slowflower_health
     }
 
+    max_health = health_map.get(plant_type, 30)
     state.plants[(row, col)] = {
         "type": plant_type,
-        "health": health_map.get(plant_type, 30)
+        "health": max_health,
+        "max_health": max_health
     }
 
     return True
