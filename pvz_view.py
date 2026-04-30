@@ -228,10 +228,24 @@ def redraw(screen: pygame.Surface, state: LawnState, config: LawnConfig):
             screen.blit(img, (plant_x - 25, plant_y - 25))
         
         # Health bar
-        health_ratio = max(0, min(1, plant["health"] / 30.0))
+        if "max_health" in plant:
+            max_health = plant["max_health"]
+        elif plant_type == "peashooter":
+            max_health = 20
+        elif plant_type == "wallnut":
+            max_health = 35
+        elif plant_type == "slowflower":
+            max_health = 12
+        else:
+            max_health = 30
+
+        health_ratio = plant["health"] / max_health
+        health_ratio = max(0, min(1, health_ratio))
         bar_width = (px2 - px1) - 10
-        pygame.draw.rect(screen, (200, 0, 0), (px1 + 5, py2 - 8, bar_width, 4))
-        pygame.draw.rect(screen, (0, 200, 0), (px1 + 5, py2 - 8, bar_width * health_ratio, 4))
+        bar_height = 4
+
+        pygame.draw.rect(screen, (200, 0, 0), (px1 + 5, py2 - 8, bar_width, bar_height))
+        pygame.draw.rect(screen, (0, 200, 0), (px1 + 5, py2 - 8, bar_width * health_ratio, bar_height))
     
     # Peas
     for pea in state.peas:
