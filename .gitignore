@@ -1,2 +1,6 @@
 .venv\
 __pycache__\
+__pycache__/pvz_controller.cpython-311.pyc
+__pycache__/pvz_model.cpython-311.pyc
+__pycache__/pvz_view.cpython-311.pyc
+.gitignore
